@@ -12,6 +12,7 @@ import re
 import time
 from urllib.parse import urljoin, urlparse
 
+import requests
 from bs4 import BeautifulSoup
 
 PAGE_SLEEP = 0.4
@@ -62,16 +63,51 @@ def _strip_tags(s):
 
 
 # ---------------- Workday ----------------
-WD_RE = re.compile(r"https?://([\w-]+)\.(wd\d+)\.myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/?#]+)")
+WD_RE = re.compile(r"https?://([\w-]+)\.(wd\d+)\.myworkdayjobs\.com(?:/(?:[a-z]{2}-[A-Z]{2}/)?([^/?#]+))?")
+_WD_COMMON = ["External", "Careers", "careers", "External_Careers", "ExternalCareers", "Search", "jobs", "Jobs",
+              "{T}", "{T}Careers", "{T}_Careers", "{T}_External", "{T}External", "{t}", "{t}careers", "{t}_careers"]
 
 
 def _wd_parts(url):
     m = WD_RE.match(url.strip())
     if not m:
-        raise ValueError(f"not a Workday careers URL (needs .../<site>): {url}")
-    tenant, wd, site = m.groups()
+        raise ValueError(f"not a Workday careers URL: {url}")
+    return m.groups()  # tenant, wdN, site (site may be None)
+
+
+def _wd_urls(tenant, wd, site):
     base = f"https://{tenant}.{wd}.myworkdayjobs.com"
     return f"{base}/wday/cxs/{tenant}/{site}", f"{base}/{site}"
+
+
+def _wd_discover(s, tenant, wd, skip=None):
+    """Find the public site name of a Workday tenant (e.g. 'External', 'Careers')."""
+    base = f"https://{tenant}.{wd}.myworkdayjobs.com"
+    cands = []
+    try:
+        r = s.get(base + "/", headers=HTML, timeout=30, allow_redirects=True)
+        m = re.search(r"myworkdayjobs\.com/(?:[a-z]{2}-[A-Z]{2}/)?([^/?#]+)", r.url)
+        if m:
+            cands.append(m.group(1))
+    except Exception:
+        pass
+    for c in _WD_COMMON:
+        for t in (tenant, tenant.upper(), tenant.capitalize()):
+            cands.append(c.replace("{T}", t).replace("{t}", tenant.lower()))
+    tried = set()
+    for site in cands:
+        if site in tried or site == skip or site.lower() in ("wday", "login"):
+            continue
+        tried.add(site)
+        api, _ = _wd_urls(tenant, wd, site)
+        try:
+            r = s.post(f"{api}/jobs", json={"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""},
+                       headers=JSON, timeout=20)
+            if r.status_code == 200 and "total" in r.json():
+                return site
+        except Exception:
+            pass
+    return None
 
 
 WD_CAP = 2000  # Workday refuses to page past roughly the first 2,000 results of one search
@@ -132,8 +168,27 @@ def _wd_split_facet(facets):
 
 
 def fetch_workday(s, name, url, max_jobs):
-    api, public = _wd_parts(url)
-    first = _wd_page(s, api, {}, 0)
+    tenant, wd, site = _wd_parts(url)
+    first = None
+    if site:
+        api, public = _wd_urls(tenant, wd, site)
+        try:
+            first = _wd_page(s, api, {}, 0)
+        except requests.HTTPError as e:
+            if e.response is None or e.response.status_code not in (400, 404, 422):
+                raise
+            found = _wd_discover(s, tenant, wd, skip=site)
+            if not found:
+                raise
+            print(f"     note: {name} Workday site '{site}' failed; using '{found}' instead (update companies.yaml)")
+            site = found
+    else:
+        site = _wd_discover(s, tenant, wd)
+        if not site:
+            raise RuntimeError("could not find this Workday tenant's public job site; paste a full careers URL")
+        print(f"     note: {name} Workday site found: {site}")
+    api, public = _wd_urls(tenant, wd, site)
+    first = first or _wd_page(s, api, {}, 0)
     total = first.get("total") or 0
     out, seen = [], set()
     if total < WD_CAP - 50 or max_jobs <= 20:
@@ -210,8 +265,8 @@ def _sf_table(s, name, base, max_jobs):
 
 def _sf_api(s, name, base, max_jobs):
     home = s.get(base + "/", params={"locale": "en_US"}, headers=HTML, timeout=30)
-    m = re.search(r"CSRFToken\s*[=:]\s*['\"]([^'\"]+)", home.text) or \
-        re.search(r"['\"]csrf[_-]?token['\"]\s*[:=]\s*['\"]([^'\"]+)", home.text, re.I)
+    m = (re.search(r"CSRFToken\s*[=:]\s*['\"]([^'\"]+)", home.text)
+         or re.search(r"csrf[_-]?token['\"]?\s*[:=]\s*['\"]([^'\"]+)", home.text, re.I))  # e.g. "X-CSRF-Token" : "..."
     headers = dict(JSON, Origin=base, Referer=base + "/", **{"X-Requested-With": "XMLHttpRequest"})
     if m:
         headers["X-CSRF-Token"] = m.group(1)
@@ -252,14 +307,21 @@ def _sf_api(s, name, base, max_jobs):
 
 def _sf_rss(s, name, base, max_jobs):
     """SuccessFactors job RSS feed. Item titles usually look like 'Job Title (City, ST, CC, zip)'."""
-    r = s.get(f"{base}/services/rss/job/", params={"locale": "en_US", "keywords": "()"},
-              headers={"Accept": "application/rss+xml,application/xml,text/xml", "Content-Type": None}, timeout=60)
-    if r.status_code >= 400:
-        raise RuntimeError(f"HTTP {r.status_code}")
-    soup = BeautifulSoup(r.content, "xml")
-    if not soup.find("item"):
-        snippet = re.sub(r"\s+", " ", r.text[:150])
-        raise RuntimeError(f"no items ({r.headers.get('Content-Type', '?')}, {len(r.text)} chars): {snippet}")
+    soup, last = None, ""
+    for params in ({"locale": "en_US"}, {"locale": "en_US", "keywords": ""}, {"locale": "en_US", "keywords": "()"}):
+        r = s.get(f"{base}/services/rss/job/", params=params,
+                  headers={"Accept": "application/rss+xml,application/xml,text/xml", "Content-Type": None}, timeout=60)
+        if r.status_code >= 400:
+            last = f"HTTP {r.status_code}"
+            continue
+        soup = BeautifulSoup(r.content, "xml")
+        if soup.find("item"):
+            break
+        snippet = re.sub(r"\s+", " ", r.text[:120])
+        last = f"no items: {snippet}"
+        soup = None
+    if soup is None:
+        raise RuntimeError(last)
     out = []
     for it in soup.find_all("item")[:max_jobs]:
         raw = _text(it.find("title"))
@@ -338,6 +400,43 @@ def fetch_eightfold(s, name, url, max_jobs):
     return out
 
 
+# ---------------- Radancy / TalentBrew (Parexel, Takeda's jobs.takeda.com) ----------------
+def fetch_radancy(s, name, url, max_jobs):
+    base = url.rstrip("/")
+    out, seen, page = [], set(), 1
+    while len(out) < max_jobs:
+        params = {"ActiveFacetID": 0, "CurrentPage": page, "RecordsPerPage": 100, "Distance": 50,
+                  "RadiusUnitType": 0, "Keywords": "", "Location": "", "ShowRadius": "False",
+                  "IsPagination": "True", "CustomFacetName": "", "FacetTerm": "", "FacetType": 0,
+                  "SearchResultsModuleName": "Search Results", "SearchFiltersModuleName": "Search Filters",
+                  "SortCriteria": 0, "SortDirection": 0, "SearchType": 5}
+        r = s.get(f"{base}/search-jobs/results", params=params,
+                  headers=dict(JSON, **{"X-Requested-With": "XMLHttpRequest", "Referer": base + "/search-jobs"}),
+                  timeout=30)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.json().get("results") or "", "html.parser")
+        links = soup.select("a[data-job-id]") or soup.select("a[href*='/job/']")
+        new = 0
+        for a in links:
+            href = urljoin(base + "/", a.get("href", ""))
+            jid = a.get("data-job-id") or href.rstrip("/").split("/")[-1]
+            if not jid or jid in seen:
+                continue
+            seen.add(jid)
+            new += 1
+            box = a.find_parent("li") or a
+            out.append({"id": f"{name}|{jid}", "company": name,
+                        "title": _text(a.select_one("h2, h3, .job-title")) or _text(a),
+                        "location": _text(box.select_one(".job-location, [class*='location']")),
+                        "posted": to_date(_text(box.select_one(".job-date-posted, [class*='date']"))),
+                        "url": href})
+        if not new:
+            break
+        page += 1
+        time.sleep(PAGE_SLEEP)
+    return out
+
+
 # ---------------- Greenhouse / Lever / SmartRecruiters (biotechs) ----------------
 def fetch_greenhouse(s, name, token, max_jobs):
     r = s.get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs", headers=JSON, timeout=30)
@@ -378,6 +477,6 @@ def fetch_smartrecruiters(s, name, token, max_jobs):
 
 FETCHERS = {
     "workday": fetch_workday, "successfactors": fetch_successfactors, "phenom": fetch_phenom,
-    "eightfold": fetch_eightfold, "greenhouse": fetch_greenhouse, "lever": fetch_lever,
+    "eightfold": fetch_eightfold, "radancy": fetch_radancy, "greenhouse": fetch_greenhouse, "lever": fetch_lever,
     "smartrecruiters": fetch_smartrecruiters,
 }

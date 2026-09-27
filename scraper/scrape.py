@@ -43,6 +43,23 @@ def parse_posted(text, today):
     return (today - dt.timedelta(days=d)).isoformat()
 
 
+def fetch_company(s, c, max_jobs):
+    """Try the main source; if it fails and a fallback is configured, try that."""
+    sources_ = [c] + ([c["fallback"]] if c.get("fallback") else [])
+    errors = []
+    for src in sources_:
+        try:
+            jobs = FETCHERS[src.get("type", "workday")](s, c["name"], src["url"], max_jobs)
+            if not jobs:
+                raise RuntimeError("no jobs parsed")
+            if src is not c:
+                print(f"     note: {c['name']} main source failed ({errors[0][:80]}); used fallback {src['url']}")
+            return jobs
+        except Exception as e:
+            errors.append(f"{type(e).__name__}: {e}")
+    raise RuntimeError(" | fallback: ".join(errors))
+
+
 def check(cfg, s, only):
     ok = n = 0
     for c in cfg["companies"]:
@@ -50,9 +67,7 @@ def check(cfg, s, only):
             continue
         n += 1
         try:
-            jobs = FETCHERS[c.get("type", "workday")](s, c["name"], c["url"], 1)
-            if not jobs:
-                raise RuntimeError("connected, but no jobs were parsed")
+            jobs = fetch_company(s, c, 1)
             j = jobs[0]
             print(f"  OK    {c['name']:<26} e.g. \"{j['title'][:50]}\" | {j['location'][:40]} | "
                   f"{j.get('posted') or j.get('posted_text') or 'no date'}")
@@ -92,19 +107,19 @@ def main():
 
     result, status, budget = [], [], DETAIL_BUDGET
     for c in cfg["companies"]:
-        name, kind = c["name"], c.get("type", "workday")
+        name = c["name"]
         try:
-            fetched = FETCHERS[kind](s, name, c["url"], max_jobs)
-            if not fetched:
-                raise RuntimeError("no jobs parsed")
+            fetched = fetch_company(s, c, c.get("max_jobs", max_jobs))
         except Exception as e:
             # On failure keep the previous jobs for this company so they don't vanish
-            status.append({"company": name, "ok": False, "error": f"{type(e).__name__}: {str(e)[:180]}"})
+            status.append({"company": name, "group": c.get("group", ""), "ok": False, "error": f"{type(e).__name__}: {str(e)[:700]}"})
             print(f"FAIL {name}: {e}")
             result.extend(j for j in old.values() if j["company"] == name)
             continue
 
         kept = 0
+        # a company seen for the first time (e.g. just added) uses posting dates, so it doesn't flood "new today"
+        company_first = first_run or not any(o["company"] == name for o in old.values())
         for j in fetched:
             j["categories"] = classify_category(f"{j['title']} {j.get('dept', '')}")
             if j["categories"] == ["Other"] and not include_other:
@@ -132,12 +147,12 @@ def main():
                 if prev:
                     j["first_seen"] = prev["first_seen"]
                 else:  # first run: use the posting date so day one isn't "everything is new"
-                    j["first_seen"] = j["posted"] if first_run and j["posted"] else today.isoformat()
+                    j["first_seen"] = j["posted"] if company_first and j["posted"] else today.isoformat()
             for k in ("_detail", "posted_text", "dept"):
                 j.pop(k, None)
             result.append(j)
             kept += 1
-        status.append({"company": name, "ok": True, "count": kept})
+        status.append({"company": name, "group": c.get("group", ""), "ok": True, "count": kept})
         print(f"OK   {name}: {len(fetched)} open, {kept} kept")
 
     result.sort(key=lambda j: (j["first_seen"] or "", j.get("posted") or ""), reverse=True)
