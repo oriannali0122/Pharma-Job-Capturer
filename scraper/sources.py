@@ -173,7 +173,7 @@ def fetch_successfactors(s, name, url, max_jobs):
                 return jobs
             notes.append(f"{step.__name__}: 0 jobs")
         except Exception as e:
-            notes.append(f"{step.__name__}: {type(e).__name__} {str(e)[:60]}")
+            notes.append(f"{step.__name__}: {str(e)[:220]}")
     raise RuntimeError("SuccessFactors: " + "; ".join(notes))
 
 
@@ -222,7 +222,9 @@ def _sf_api(s, name, base, max_jobs):
         r = s.post(f"{base}/services/recruiting/v1/jobs", json=body, headers=headers, timeout=30)
         if r.status_code >= 400:
             if not out:
-                raise RuntimeError(f"HTTP {r.status_code}")
+                hints = sorted({h[:60] for h in re.findall(r".{0,25}csrf.{0,30}", home.text, re.I)})[:3]
+                raise RuntimeError(f"HTTP {r.status_code}, token {'found' if m else 'NOT found'}; "
+                                   f"page mentions: {hints or 'no csrf text'}")
             return out
         data = r.json()
         total = total or data.get("totalJobs")
@@ -255,6 +257,9 @@ def _sf_rss(s, name, base, max_jobs):
     if r.status_code >= 400:
         raise RuntimeError(f"HTTP {r.status_code}")
     soup = BeautifulSoup(r.content, "xml")
+    if not soup.find("item"):
+        snippet = re.sub(r"\s+", " ", r.text[:150])
+        raise RuntimeError(f"no items ({r.headers.get('Content-Type', '?')}, {len(r.text)} chars): {snippet}")
     out = []
     for it in soup.find_all("item")[:max_jobs]:
         raw = _text(it.find("title"))
