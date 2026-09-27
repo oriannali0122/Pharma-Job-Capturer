@@ -35,23 +35,23 @@ companies:
   - { name: Sanofi,               type: workday, url: "https://sanofi.wd3.myworkdayjobs.com/SanofiCareers" }
   - { name: Eli Lilly,            type: workday, url: "https://lilly.wd5.myworkdayjobs.com/LLY" }
   - { name: Takeda,               type: workday, url: "https://takeda.wd3.myworkdayjobs.com/External" }
-  - { name: AbbVie,               type: smartrecruiters, url: "abbvie" }   # unverified
+  - { name: AbbVie,               type: smartrecruiters, url: "abbvie" }
   - { name: Novo Nordisk,         type: successfactors, url: "https://careers.novonordisk.com" }
   - { name: Boehringer Ingelheim, type: successfactors, url: "https://jobs.boehringer-ingelheim.com" }
   - { name: Bayer,                type: eightfold,      url: "https://talent.bayer.com" }
-  - { name: Merck KGaA (EMD Serono), type: phenom,      url: "https://careers.merckgroup.com/global/en" }  # path unverified
+  - { name: Merck KGaA (EMD Serono), type: phenom,      url: "https://careers.merckgroup.com/global/en" }
   - { name: Astellas,             type: successfactors, url: "https://careers.astellas.com" }
   - { name: Daiichi Sankyo,       type: successfactors, url: "https://careers.daiichisankyo.com" }
-  - { name: Organon,              type: workday, url: "https://organon.wd5.myworkdayjobs.com/OrganonCareers" }  # unverified
+  - { name: Organon,              type: phenom,  url: "https://jobs.organon.com/us/en" }
 
   # ---- Large biotech ----
   - { name: Amgen,                type: workday, url: "https://amgen.wd1.myworkdayjobs.com/Careers" }
   - { name: Gilead,               type: workday, url: "https://gilead.wd1.myworkdayjobs.com/gileadcareers" }
   - { name: Regeneron,            type: workday, url: "https://regeneron.wd1.myworkdayjobs.com/Careers" }
   - { name: Biogen,               type: workday, url: "https://biibhr.wd3.myworkdayjobs.com/external" }
-  - { name: Vertex,               type: workday, url: "https://vrtx.wd501.myworkdayjobs.com/vertex_careers" }  # site name unverified
+  - { name: Vertex,               type: workday, url: "https://vrtx.wd501.myworkdayjobs.com/vertex_careers" }
   - { name: Moderna,              type: workday, url: "https://modernatx.wd1.myworkdayjobs.com/M_tx" }
   - { name: BeiGene / BeOne,      type: workday, url: "https://beigene.wd5.myworkdayjobs.com/BeiGene" }
 
   # ---- Eye care ----
-  - { name: Alcon,                type: workday, url: "https://alcon.wd5.myworkdayjobs.com/careers_alcon" }  # unverified
+  - { name: Alcon,                type: workday, url: "https://alcon.wd5.myworkdayjobs.com/careers_alcon" }
