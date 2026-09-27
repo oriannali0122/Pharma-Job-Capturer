@@ -74,29 +74,80 @@ def _wd_parts(url):
     return f"{base}/wday/cxs/{tenant}/{site}", f"{base}/{site}"
 
 
-def fetch_workday(s, name, url, max_jobs):
-    api, public = _wd_parts(url)
-    out, offset, total = [], 0, None
+WD_CAP = 2000  # Workday refuses to page past roughly the first 2,000 results of one search
+
+
+def _wd_page(s, api, facets, offset):
+    r = s.post(f"{api}/jobs", json={"appliedFacets": facets, "limit": 20, "offset": offset, "searchText": ""},
+               headers=JSON, timeout=30)
+    if r.status_code == 422 and offset > 0:
+        return None  # hit the paging cap: stop this slice quietly
+    r.raise_for_status()
+    return r.json()
+
+
+def _wd_collect(s, name, api, public, facets, max_jobs, out, seen):
+    offset, total = 0, None
     while True:
-        r = s.post(f"{api}/jobs", json={"appliedFacets": {}, "limit": 20, "offset": offset, "searchText": ""},
-                   headers=JSON, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-        if total is None:  # Workday only reports the total on the first page
+        data = _wd_page(s, api, facets, offset)
+        if data is None:
+            break
+        if total is None:
             total = data.get("total") or 0
         posts = data.get("jobPostings") or []
         if not posts:
             break
         for p in posts:
             path = p.get("externalPath")
-            if path:
+            if path and path not in seen:
+                seen.add(path)
                 out.append({"id": f"{name}|{path}", "company": name, "title": (p.get("title") or "").strip(),
                             "location": p.get("locationsText") or "", "posted_text": p.get("postedOn") or "",
                             "url": public + path, "_detail": api + path})
         offset += 20
-        if offset >= min(total, max_jobs):
+        if offset >= min(total, WD_CAP) or len(out) >= max_jobs:
             break
         time.sleep(PAGE_SLEEP)
+    return total
+
+
+def _wd_split_facet(facets):
+    """Pick a facet (country first, then job category) whose every value is under the paging cap."""
+    flat = []
+
+    def walk(items):
+        for f in items or []:
+            vals = f.get("values") or []
+            if vals and all("count" in v for v in vals):
+                flat.append((f.get("facetParameter", ""), vals))
+            for v in vals:
+                if v.get("values"):
+                    walk([v])
+    walk(facets)
+    rank = lambda p: (0 if "country" in p.lower() else 1 if "family" in p.lower() else 2)
+    for param, vals in sorted(flat, key=lambda x: rank(x[0])):
+        if param and max(v["count"] for v in vals) < WD_CAP:
+            return param, vals
+    return None
+
+
+def fetch_workday(s, name, url, max_jobs):
+    api, public = _wd_parts(url)
+    first = _wd_page(s, api, {}, 0)
+    total = first.get("total") or 0
+    out, seen = [], set()
+    if total < WD_CAP - 50 or max_jobs <= 20:
+        _wd_collect(s, name, api, public, {}, max_jobs, out, seen)
+        return out
+    split = _wd_split_facet(first.get("facets"))
+    if not split:  # no usable facet: take what the cap allows
+        _wd_collect(s, name, api, public, {}, max_jobs, out, seen)
+        return out
+    param, vals = split
+    for v in vals:
+        _wd_collect(s, name, api, public, {param: [v["id"]]}, max_jobs, out, seen)
+        if len(out) >= max_jobs:
+            break
     return out
 
 
@@ -114,13 +165,16 @@ def workday_detail(s, job):
 # results from /services/recruiting/v1/jobs. We try the table first, then the JSON API.
 def fetch_successfactors(s, name, url, max_jobs):
     base = url.rstrip("/")
-    jobs = _sf_table(s, name, base, max_jobs)
-    if jobs:
-        return jobs
-    jobs = _sf_api(s, name, base, max_jobs)
-    if jobs:
-        return jobs
-    raise RuntimeError("SuccessFactors: no jobs found in the /search/ table or the jobs API")
+    notes = []
+    for step in (_sf_table, _sf_api, _sf_rss):
+        try:
+            jobs = step(s, name, base, max_jobs)
+            if jobs:
+                return jobs
+            notes.append(f"{step.__name__}: 0 jobs")
+        except Exception as e:
+            notes.append(f"{step.__name__}: {type(e).__name__} {str(e)[:60]}")
+    raise RuntimeError("SuccessFactors: " + "; ".join(notes))
 
 
 def _sf_table(s, name, base, max_jobs):
@@ -155,15 +209,20 @@ def _sf_table(s, name, base, max_jobs):
 
 
 def _sf_api(s, name, base, max_jobs):
-    home = s.get(base + "/", headers=HTML, timeout=30)
-    m = re.search(r"CSRFToken\s*[=:]\s*['\"]([^'\"]+)", home.text)
-    headers = dict(JSON, **({"X-CSRF-Token": m.group(1)} if m else {}))
+    home = s.get(base + "/", params={"locale": "en_US"}, headers=HTML, timeout=30)
+    m = re.search(r"CSRFToken\s*[=:]\s*['\"]([^'\"]+)", home.text) or \
+        re.search(r"['\"]csrf[_-]?token['\"]\s*[:=]\s*['\"]([^'\"]+)", home.text, re.I)
+    headers = dict(JSON, Origin=base, Referer=base + "/", **{"X-Requested-With": "XMLHttpRequest"})
+    if m:
+        headers["X-CSRF-Token"] = m.group(1)
     out, page, total = [], 0, None
     while len(out) < max_jobs:
         body = {"locale": "en_US", "pageNumber": page, "sortBy": "", "keywords": "", "location": "",
                 "facetFilters": {}, "brand": "", "skills": [], "categoryId": 0, "alertId": "", "rcmCandidateId": ""}
         r = s.post(f"{base}/services/recruiting/v1/jobs", json=body, headers=headers, timeout=30)
         if r.status_code >= 400:
+            if not out:
+                raise RuntimeError(f"HTTP {r.status_code}")
             return out
         data = r.json()
         total = total or data.get("totalJobs")
@@ -186,6 +245,26 @@ def _sf_api(s, name, base, max_jobs):
         if total and len(out) >= total:
             break
         time.sleep(PAGE_SLEEP)
+    return out
+
+
+def _sf_rss(s, name, base, max_jobs):
+    """SuccessFactors job RSS feed. Item titles usually look like 'Job Title (City, ST, CC, zip)'."""
+    r = s.get(f"{base}/services/rss/job/", params={"locale": "en_US", "keywords": "()"},
+              headers={"Accept": "application/rss+xml,application/xml,text/xml", "Content-Type": None}, timeout=60)
+    if r.status_code >= 400:
+        raise RuntimeError(f"HTTP {r.status_code}")
+    soup = BeautifulSoup(r.content, "xml")
+    out = []
+    for it in soup.find_all("item")[:max_jobs]:
+        raw = _text(it.find("title"))
+        link = _text(it.find("link"))
+        m = re.match(r"^(.*)\s+\(([^()]*)\)\s*$", raw)
+        title, loc = (m.group(1), m.group(2)) if m else (raw, "")
+        loc = re.sub(r",\s*\d[\w -]*$", "", loc)  # drop trailing postal code
+        jid = (re.search(r"/(\d+)(?:-[a-z]{2}_[A-Z]{2})?/?$", link) or [None, link])[1]
+        out.append({"id": f"{name}|{jid}", "company": name, "title": title.strip(), "location": loc.strip(),
+                    "posted": to_date(_text(it.find("pubDate"))[5:16]), "url": link})
     return out
 
 
