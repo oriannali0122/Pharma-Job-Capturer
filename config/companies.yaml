@@ -1,0 +1,57 @@
+# Companies to scrape
+#
+# To add a company: open its careers site, run any job search, and copy the URL from the address bar.
+#   - URL contains myworkdayjobs.com  -> type: workday, paste the URL up to the site name
+#                                        e.g. https://pfizer.wd1.myworkdayjobs.com/PfizerCareers
+#   - URL contains greenhouse.io      -> type: greenhouse, url = the board name after /boards/ or boards.greenhouse.io/
+#   - URL contains jobs.lever.co      -> type: lever, url = the company slug
+#   - URL contains smartrecruiters    -> type: smartrecruiters, url = the company slug
+#   - SAP SuccessFactors site (job links look like /job/<title>/<number>/)
+#                                     -> type: successfactors, url = the site's home page
+#   - Phenom site (links look like /global/en/job/<id>/...) -> type: phenom, url = up to the /xx/en part
+#   - Eightfold site (talent.<company>.com/careers)       -> type: eightfold, url = https://talent.<company>.com
+#
+# Before going live, run:   python scraper/scrape.py --check
+# Each OK line shows one sample job so you can confirm the title, location and date look right.
+# Any FAIL line: open that company's careers page and replace the URL with the current one.
+
+settings:
+  timezone: America/Los_Angeles     # which timezone defines "today"
+  regions: [USA, China, Europe]     # jobs outside these are dropped
+  max_jobs_per_company: 3000
+  include_other_categories: false   # true = also keep manufacturing, IT, finance, etc. (much bigger file)
+
+companies:
+  # ---- Big pharma ----
+  - { name: Pfizer,               type: workday, url: "https://pfizer.wd1.myworkdayjobs.com/PfizerCareers" }
+  - { name: Johnson & Johnson,    type: workday, url: "https://jj.wd5.myworkdayjobs.com/JJ" }
+  - { name: Merck & Co. (MSD),    type: workday, url: "https://msd.wd5.myworkdayjobs.com/SearchJobs" }
+    # if this fails, Merck's US site is Phenom:  type: phenom, url: "https://jobs.merck.com/us/en"
+  - { name: Novartis,             type: workday, url: "https://novartis.wd3.myworkdayjobs.com/Novartis_Careers" }
+  - { name: Roche / Genentech,    type: workday, url: "https://roche.wd3.myworkdayjobs.com/roche-ext" }
+  - { name: AstraZeneca,          type: workday, url: "https://astrazeneca.wd3.myworkdayjobs.com/Careers" }
+  - { name: Bristol Myers Squibb, type: workday, url: "https://bristolmyerssquibb.wd5.myworkdayjobs.com/BMS" }
+  - { name: GSK,                  type: workday, url: "https://gsk.wd5.myworkdayjobs.com/GSKCareers" }
+  - { name: Sanofi,               type: workday, url: "https://sanofi.wd3.myworkdayjobs.com/SanofiCareers" }
+  - { name: Eli Lilly,            type: workday, url: "https://lilly.wd5.myworkdayjobs.com/LLY" }
+  - { name: Takeda,               type: workday, url: "https://takeda.wd3.myworkdayjobs.com/External" }
+  - { name: AbbVie,               type: smartrecruiters, url: "abbvie" }   # unverified
+  - { name: Novo Nordisk,         type: successfactors, url: "https://careers.novonordisk.com" }
+  - { name: Boehringer Ingelheim, type: successfactors, url: "https://jobs.boehringer-ingelheim.com" }
+  - { name: Bayer,                type: eightfold,      url: "https://talent.bayer.com" }
+  - { name: Merck KGaA (EMD Serono), type: phenom,      url: "https://careers.merckgroup.com/global/en" }  # path unverified
+  - { name: Astellas,             type: successfactors, url: "https://careers.astellas.com" }
+  - { name: Daiichi Sankyo,       type: successfactors, url: "https://careers.daiichisankyo.com" }
+  - { name: Organon,              type: workday, url: "https://organon.wd5.myworkdayjobs.com/OrganonCareers" }  # unverified
+
+  # ---- Large biotech ----
+  - { name: Amgen,                type: workday, url: "https://amgen.wd1.myworkdayjobs.com/Careers" }
+  - { name: Gilead,               type: workday, url: "https://gilead.wd1.myworkdayjobs.com/gileadcareers" }
+  - { name: Regeneron,            type: workday, url: "https://regeneron.wd1.myworkdayjobs.com/Careers" }
+  - { name: Biogen,               type: workday, url: "https://biibhr.wd3.myworkdayjobs.com/external" }
+  - { name: Vertex,               type: workday, url: "https://vrtx.wd501.myworkdayjobs.com/vertex_careers" }  # site name unverified
+  - { name: Moderna,              type: workday, url: "https://modernatx.wd1.myworkdayjobs.com/M_tx" }
+  - { name: BeiGene / BeOne,      type: workday, url: "https://beigene.wd5.myworkdayjobs.com/BeiGene" }
+
+  # ---- Eye care ----
+  - { name: Alcon,                type: workday, url: "https://alcon.wd5.myworkdayjobs.com/careers_alcon" }  # unverified

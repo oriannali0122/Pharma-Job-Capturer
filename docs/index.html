@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pharma Jobs Daily</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F3; --paper:#FFFFFF; --ink:#14213A; --muted:#5A6780; --line:#D5DCE5; --focus:#2B59C3;
+  --c-heor:#2F7A72; --c-access:#C0602F; --c-trial:#3D5BA9; --c-med:#7B4F9E;
+  --c-stat:#B58416; --c-reg:#4F7D3A; --c-comm:#A8465F; --c-other:#8A94A3;
+  --font:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1726; --paper:#162134; --ink:#E6EBF2; --muted:#93A0B5; --line:#26344B; --focus:#8FB0FF;
+  --c-heor:#4FB3A7; --c-access:#E58A55; --c-trial:#7D9BEA; --c-med:#B18AD6;
+  --c-stat:#E0B14A; --c-reg:#86B96A; --c-comm:#E07D97; --c-other:#7D8799;}}
+:root[data-theme="dark"]{
+  --bg:#0F1726; --paper:#162134; --ink:#E6EBF2; --muted:#93A0B5; --line:#26344B; --focus:#8FB0FF;
+  --c-heor:#4FB3A7; --c-access:#E58A55; --c-trial:#7D9BEA; --c-med:#B18AD6;
+  --c-stat:#E0B14A; --c-reg:#86B96A; --c-comm:#E07D97; --c-other:#7D8799;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand{font-weight:600;font-size:15px;letter-spacing:.01em}
+.updated{font-size:13px;color:var(--muted)}
+.updated button{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+
+.demo{margin-top:14px;padding:10px 14px;border-left:3px solid var(--c-access);background:var(--paper);font-size:14px;color:var(--muted)}
+
+h1{font-size:clamp(34px,7vw,60px);line-height:1.02;font-weight:800;letter-spacing:-.025em;margin:30px 0 20px;font-variant-numeric:tabular-nums}
+h1 small{display:block;font-size:15px;font-weight:500;letter-spacing:0;color:var(--muted);margin-top:10px;line-height:1.4}
+
+/* Category spectrum: segment width = job count; click to filter */
+.spectrum{display:flex;height:44px;border-radius:6px;overflow:hidden;gap:2px;background:var(--line)}
+.spectrum button{border:0;padding:0;cursor:pointer;background:var(--c);min-width:6px;transition:opacity .15s,flex-grow .3s}
+.spectrum.filtering button[aria-pressed="false"]{opacity:.22}
+.legend{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:12px}
+.legend button{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 9px;border:1px solid var(--line);border-radius:999px;background:var(--paper);font-size:14px;cursor:pointer}
+.legend button::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+.legend button[aria-pressed="true"]{border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.legend .n{color:var(--muted);font-variant-numeric:tabular-nums}
+.legend .clear{border-style:dashed;color:var(--muted)}
+.legend .clear::before{display:none}
+
+.controls{display:grid;grid-template-columns:auto auto 1fr;gap:10px;margin:26px 0 8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:3px}
+.seg button{border:0;background:none;padding:6px 11px;border-radius:5px;font-size:14px;cursor:pointer;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.row2{display:flex;gap:10px;grid-column:1/-1}
+select,input[type=search]{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 11px;font-size:14px;min-width:0}
+input[type=search]{flex:1}
+
+.group{margin-top:26px}
+.group h2{font-size:14px;font-weight:600;color:var(--muted);margin:0 0 6px;display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px}
+ul{list-style:none;margin:0;padding:0}
+.job{display:grid;grid-template-columns:4px 1fr auto;gap:0 14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.job .bar{border-radius:2px;background:linear-gradient(var(--c1),var(--c2,var(--c1)))}
+.job a{color:var(--ink);text-decoration:none;font-weight:500;font-size:16px;line-height:1.35}
+.job a:hover{text-decoration:underline;text-underline-offset:3px}
+.meta{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:13.5px;color:var(--muted);margin-top:3px}
+.meta .co{color:var(--ink);font-weight:600}
+.side{text-align:right;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.side .tag{display:block;color:var(--tc);font-weight:600}
+.empty{padding:40px 0;color:var(--muted)}
+.more{margin-top:18px;border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:10px 16px;cursor:pointer;width:100%}
+.status{margin-top:36px;font-size:13px;color:var(--muted)}
+.status summary{cursor:pointer}
+.status li{padding:2px 0}
+.status .fail{color:var(--c-access)}
+
+@media (max-width:640px){
+  .controls{grid-template-columns:1fr}
+  .seg{overflow-x:auto;justify-self:start;max-width:100%}
+  .row2{flex-direction:column}
+  .job{grid-template-columns:4px 1fr}
+  .side{grid-column:2;text-align:left;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
+  .side .tag{display:inline}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Pharma Jobs Daily</div>
+    <div class="updated" id="updated"></div>
+  </header>
+  <div id="demo"></div>
+
+  <h1 id="headline">Loading</h1>
+
+  <div class="spectrum" id="spectrum" role="group" aria-label="Filter by job category"></div>
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <div class="seg" id="win" role="group" aria-label="Time range"></div>
+    <div class="seg" id="region" role="group" aria-label="Region"></div>
+    <div class="row2">
+      <select id="company" aria-label="Company"></select>
+      <input type="search" id="q" placeholder="Search job titles, e.g. oncology, director" aria-label="Search job titles">
+    </div>
+  </div>
+
+  <div id="list"></div>
+  <details class="status" id="status"></details>
+</div>
+
+<script>
+const CATS=[
+ ["HEOR / RWE","--c-heor"],["Market Access","--c-access"],["Clinical Trials","--c-trial"],
+ ["Medical Affairs","--c-med"],["Biostat / Data Science","--c-stat"],["Regulatory / Safety","--c-reg"],
+ ["Commercial","--c-comm"],["Other","--c-other"]];
+const CAT_COLOR=Object.fromEntries(CATS.map(([k,v])=>[k,`var(${v})`]));
+const REGIONS=[["all","All regions"],["USA","US"],["China","China"],["Europe","Europe"]];
+const WINDOWS=[["1","Today"],["7","7 days"],["30","30 days"],["all","All"]];
+const WIN_TEXT={"1":"New today","7":"New in the last 7 days","30":"New in the last 30 days","all":"All open roles"};
+
+const DEMO={demo:true,run_date:"2026-09-27",updated_at:"2026-09-27T07:05-07:00",
+ status:[{company:"Pfizer",ok:true,count:189},{company:"Johnson & Johnson",ok:true,count:95},{company:"Merck & Co. (MSD)",ok:true,count:219},{company:"Novartis",ok:true,count:121},{company:"Roche / Genentech",ok:true,count:233},{company:"AstraZeneca",ok:true,count:206},{company:"Bristol Myers Squibb",ok:true,count:245},{company:"GSK",ok:true,count:219},{company:"Sanofi",ok:true,count:196},{company:"Eli Lilly",ok:true,count:165},{company:"Takeda",ok:true,count:37},{company:"AbbVie",ok:true,count:245},{company:"Novo Nordisk",ok:true,count:149},{company:"Boehringer Ingelheim",ok:true,count:228},{company:"Bayer",ok:true,count:93},{company:"Merck KGaA (EMD Serono)",ok:true,count:196},{company:"Astellas",ok:true,count:43},{company:"Daiichi Sankyo",ok:true,count:260},{company:"Organon",ok:true,count:70},{company:"Amgen",ok:true,count:58},{company:"Gilead",ok:true,count:125},{company:"Regeneron",ok:true,count:150},{company:"Biogen",ok:true,count:252},{company:"Vertex",ok:true,count:93},{company:"Moderna",ok:true,count:127},{company:"BeiGene / BeOne",ok:true,count:169},{company:"Alcon",ok:true,count:56}],
+ jobs:[
+ {company:"Novartis",title:"Associate Director, HEOR – Ophthalmology",location:"East Hanover, New Jersey",regions:["USA"],categories:["HEOR / RWE"],posted:"2026-09-27",first_seen:"2026-09-27",url:"#"},
+ {company:"AstraZeneca",title:"Market Access Manager, Oncology",location:"Shanghai, China",regions:["China"],categories:["Market Access"],posted:"2026-09-27",first_seen:"2026-09-27",url:"#"},
+ {company:"Roche / Genentech",title:"Principal Scientist, Real World Data – Oncology",location:"South San Francisco",regions:["USA"],categories:["HEOR / RWE"],posted:"2026-09-26",first_seen:"2026-09-27",url:"#"},
+ {company:"Pfizer",title:"Clinical Trial Manager",location:"Brussels, Belgium",regions:["Europe"],categories:["Clinical Trials"],posted:"2026-09-27",first_seen:"2026-09-27",url:"#"},
+ {company:"Sanofi",title:"Value & Access Lead, Rare Diseases",location:"Paris, France",regions:["Europe"],categories:["Market Access"],posted:"2026-09-26",first_seen:"2026-09-26",url:"#"},
+ {company:"BeiGene / BeOne",title:"Medical Science Liaison – Hematology",location:"Beijing, China",regions:["China"],categories:["Medical Affairs"],posted:"2026-09-26",first_seen:"2026-09-26",url:"#"},
+ {company:"Merck & Co. (MSD)",title:"Director, Outcomes Research – Vaccines",location:"Rahway, NJ",regions:["USA"],categories:["HEOR / RWE"],posted:"2026-09-25",first_seen:"2026-09-26",url:"#"},
+ {company:"Gilead",title:"Senior Biostatistician, Real-World Evidence",location:"Foster City, California",regions:["USA"],categories:["HEOR / RWE","Biostat / Data Science"],posted:"2026-09-25",first_seen:"2026-09-25",url:"#"},
+ {company:"Novo Nordisk",title:"Pricing & Reimbursement Manager",location:"Zurich, Switzerland",regions:["Europe"],categories:["Market Access"],posted:"2026-09-24",first_seen:"2026-09-24",url:"#"},
+ {company:"Eli Lilly",title:"Clinical Research Scientist – Diabetes",location:"Indianapolis, Indiana",regions:["USA"],categories:["Clinical Trials"],posted:"2026-09-23",first_seen:"2026-09-23",url:"#"},
+ {company:"Boehringer Ingelheim",title:"Regulatory Affairs Manager",location:"Ingelheim, Germany",regions:["Europe"],categories:["Regulatory / Safety"],posted:"2026-09-22",first_seen:"2026-09-22",url:"#"},
+ {company:"Amgen",title:"Brand Manager, Oncology",location:"Thousand Oaks, California",regions:["USA"],categories:["Commercial"],posted:"2026-09-22",first_seen:"2026-09-22",url:"#"}
+ ]};
+
+const S={cats:new Set(),region:"all",win:"7",company:"all",q:"",limit:150};
+let DATA=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dayDiff=(a,b)=>Math.round((new Date(a+"T00:00")-new Date(b+"T00:00"))/864e5);
+
+function inWindow(j){ if(S.win==="all")return true; return dayDiff(DATA.run_date,j.first_seen||j.posted||DATA.run_date) < +S.win; }
+function baseFilter(j){
+  if(!inWindow(j))return false;
+  if(S.region!=="all"&&!(j.regions||[]).includes(S.region))return false;
+  if(S.company!=="all"&&j.company!==S.company)return false;
+  if(S.q&&!j.title.toLowerCase().includes(S.q))return false;
+  return true;
+}
+const catMatch=j=>!S.cats.size||j.categories.some(c=>S.cats.has(c));
+
+function segs(el,items,key){
+  el.innerHTML=items.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${S[key]===v}">${l}</button>`).join("");
+  el.onclick=e=>{const b=e.target.closest("button");if(!b)return;S[key]=b.dataset.v;S.limit=150;render();};
+}
+
+function toggleCat(c){ S.cats.has(c)?S.cats.delete(c):S.cats.add(c); S.limit=150; render(); }
+
+function label(d){
+  const n=dayDiff(DATA.run_date,d);
+  if(n===0)return "Today"; if(n===1)return "Yesterday";
+  return new Date(d+"T00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+}
+
+function render(){
+  segs($("win"),WINDOWS,"win"); segs($("region"),REGIONS,"region");
+  const base=DATA.jobs.filter(baseFilter);
+  const counts={}; base.forEach(j=>j.categories.forEach(c=>counts[c]=(counts[c]||0)+1));
+  const present=CATS.filter(([k])=>counts[k]);
+
+  const sp=$("spectrum"); sp.classList.toggle("filtering",S.cats.size>0);
+  sp.innerHTML=present.map(([k,v])=>`<button type="button" style="--c:var(${v});flex-grow:${counts[k]}" aria-pressed="${S.cats.has(k)}" title="${k}: ${counts[k]}" aria-label="${k}, ${counts[k]} jobs" data-c="${esc(k)}"></button>`).join("")||`<button disabled style="--c:var(--line);flex-grow:1"></button>`;
+  sp.onclick=e=>{const b=e.target.closest("button[data-c]");if(b)toggleCat(b.dataset.c);};
+
+  const lg=$("legend");
+  lg.innerHTML=present.map(([k,v])=>`<button type="button" style="--c:var(${v})" aria-pressed="${S.cats.has(k)}" data-c="${esc(k)}">${k} <span class="n">${counts[k]}</span></button>`).join("")
+    +(S.cats.size?`<button type="button" class="clear" data-clear>Show all categories</button>`:"");
+  lg.onclick=e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.clear!==undefined){S.cats.clear();render();}else toggleCat(b.dataset.c);};
+
+  const rows=base.filter(catMatch);
+  const rName=REGIONS.find(r=>r[0]===S.region)[1];
+  $("headline").innerHTML=`${rows.length.toLocaleString("en-US")} ${rows.length===1?"job":"jobs"}<small>${WIN_TEXT[S.win]}${S.region==="all"?"":", "+rName}${S.cats.size?", "+[...S.cats].join(" + "):""}${S.company==="all"?"":", "+esc(S.company)}</small>`;
+
+  const shown=rows.slice(0,S.limit), groups=new Map();
+  shown.forEach(j=>{const k=j.first_seen||j.posted||DATA.run_date;(groups.get(k)||groups.set(k,[]).get(k)).push(j);});
+  let html="";
+  for(const [d,list] of groups){
+    html+=`<section class="group"><h2><span>First seen ${label(d).replace(/^(Today|Yesterday)$/,m=>m.toLowerCase())}</span><span>${list.length}</span></h2><ul>`;
+    for(const j of list){
+      const c1=CAT_COLOR[j.categories[0]]||CAT_COLOR.Other, c2=CAT_COLOR[j.categories[1]];
+      html+=`<li class="job"><span class="bar" style="--c1:${c1};${c2?`--c2:${c2}`:""}"></span>
+        <div><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+        <div class="meta"><span class="co">${esc(j.company)}</span><span>${esc(j.location)}</span></div></div>
+        <div class="side">${j.categories.map(c=>`<span class="tag" style="--tc:${CAT_COLOR[c]||CAT_COLOR.Other}">${esc(c)}</span>`).join("")}
+        ${j.posted?`<span>Posted ${label(j.posted).replace(/^(Today|Yesterday)$/,m=>m.toLowerCase())}</span>`:""}</div></li>`;
+    }
+    html+="</ul></section>";
+  }
+  if(!rows.length) html=`<p class="empty">No jobs match these filters. Try widening the time range to 30 days or clearing the category filter.</p>`;
+  if(rows.length>S.limit) html+=`<button type="button" class="more" id="more">Show ${Math.min(150,rows.length-S.limit)} more (${rows.length} total)</button>`;
+  $("list").innerHTML=html;
+  const m=$("more"); if(m)m.onclick=()=>{S.limit+=150;render();};
+}
+
+function init(d){
+  DATA=d; d.jobs=d.jobs.filter(j=>(j.regions||[]).length);
+  if(d.demo) $("demo").innerHTML=`<p class="demo">This is sample data. Real jobs appear here after you deploy to GitHub and run the first scrape.</p>`;
+  const t=new Date(d.updated_at);
+  const ok=d.status.filter(s=>s.ok).length;
+  $("updated").innerHTML=`Updated ${isNaN(t)?esc(d.updated_at):t.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}. <button type="button" id="st">${ok} of ${d.status.length} companies scraped</button>`;
+  $("status").innerHTML=`<summary>Scrape status by company</summary><ul>${d.status.map(s=>`<li class="${s.ok?"":"fail"}">${esc(s.company)}: ${s.ok?s.count+" relevant jobs":"failed ("+esc(s.error)+")"}</li>`).join("")}</ul>`;
+  $("st").onclick=()=>{$("status").open=true;$("status").scrollIntoView({behavior:"smooth"});};
+  const cos=[...new Set(d.jobs.map(j=>j.company))].sort();
+  $("company").innerHTML=`<option value="all">All companies</option>`+cos.map(c=>`<option>${esc(c)}</option>`).join("");
+  $("company").onchange=e=>{S.company=e.target.value;S.limit=150;render();};
+  let tmr; $("q").oninput=e=>{clearTimeout(tmr);tmr=setTimeout(()=>{S.q=e.target.value.trim().toLowerCase();S.limit=150;render();},150);};
+  render();
+}
+
+fetch("jobs.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(init).catch(()=>init(DEMO));
+</script>
+</body>
+</html>
