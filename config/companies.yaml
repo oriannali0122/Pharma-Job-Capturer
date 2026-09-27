@@ -10,6 +10,13 @@
 #                                     -> type: successfactors, url = the site's home page
 #   - Phenom site (links look like /global/en/job/<id>/...) -> type: phenom, url = up to the /xx/en part
 #   - Eightfold site (talent.<company>.com/careers)       -> type: eightfold, url = https://talent.<company>.com
+#   - Radancy site (links look like /job/<city>/<title>/<number>/<number>) -> type: radancy, url = site home page
+#
+# Workday: you can paste just https://<tenant>.wdN.myworkdayjobs.com and the scraper finds the site name.
+# Optional per company:
+#   group:     heading for the company dropdown on the website
+#   max_jobs:  raise the limit for very large employers
+#   fallback:  { type: ..., url: ... } tried automatically if the main source fails
 #
 # Before going live, run:   python scraper/scrape.py --check
 # Each OK line shows one sample job so you can confirm the title, location and date look right.
@@ -23,35 +30,43 @@ settings:
 
 companies:
   # ---- Big pharma ----
-  - { name: Pfizer,               type: workday, url: "https://pfizer.wd1.myworkdayjobs.com/PfizerCareers" }
-  - { name: Johnson & Johnson,    type: workday, url: "https://jj.wd5.myworkdayjobs.com/JJ" }
-  - { name: Merck & Co. (MSD),    type: workday, url: "https://msd.wd5.myworkdayjobs.com/SearchJobs" }
-    # if this fails, Merck's US site is Phenom:  type: phenom, url: "https://jobs.merck.com/us/en"
-  - { name: Novartis,             type: workday, url: "https://novartis.wd3.myworkdayjobs.com/Novartis_Careers" }
-  - { name: Roche / Genentech,    type: workday, url: "https://roche.wd3.myworkdayjobs.com/roche-ext" }
-  - { name: AstraZeneca,          type: workday, url: "https://astrazeneca.wd3.myworkdayjobs.com/Careers" }
-  - { name: Bristol Myers Squibb, type: workday, url: "https://bristolmyerssquibb.wd5.myworkdayjobs.com/BMS" }
-  - { name: GSK,                  type: workday, url: "https://gsk.wd5.myworkdayjobs.com/GSKCareers" }
-  - { name: Sanofi,               type: workday, url: "https://sanofi.wd3.myworkdayjobs.com/SanofiCareers" }
-  - { name: Eli Lilly,            type: workday, url: "https://lilly.wd5.myworkdayjobs.com/LLY" }
-  - { name: Takeda,               type: workday, url: "https://takeda.wd3.myworkdayjobs.com/External" }
-  - { name: AbbVie,               type: smartrecruiters, url: "abbvie" }
-  - { name: Novo Nordisk,         type: successfactors, url: "https://careers.novonordisk.com" }
-  - { name: Boehringer Ingelheim, type: successfactors, url: "https://jobs.boehringer-ingelheim.com" }
-  - { name: Bayer,                type: eightfold,      url: "https://talent.bayer.com" }
-  - { name: Merck KGaA (EMD Serono), type: phenom,      url: "https://careers.merckgroup.com/global/en" }
-  - { name: Astellas,             type: successfactors, url: "https://careers.astellas.com" }
-  - { name: Daiichi Sankyo,       type: successfactors, url: "https://careers.daiichisankyo.com" }
-  - { name: Organon,              type: phenom,  url: "https://jobs.organon.com/us/en" }
+  - { group: Pharma, name: Pfizer,               type: workday, url: "https://pfizer.wd1.myworkdayjobs.com/PfizerCareers" }
+  - { group: Pharma, name: Johnson & Johnson,    type: workday, url: "https://jj.wd5.myworkdayjobs.com/JJ" }
+  - { group: Pharma, name: Merck & Co. (MSD),    type: workday, url: "https://msd.wd5.myworkdayjobs.com/SearchJobs",
+      fallback: { type: phenom, url: "https://jobs.merck.com/us/en" } }
+  - { group: Pharma, name: Novartis,             type: workday, url: "https://novartis.wd3.myworkdayjobs.com/Novartis_Careers" }
+  - { group: Pharma, name: Roche / Genentech,    type: workday, url: "https://roche.wd3.myworkdayjobs.com/roche-ext" }
+  - { group: Pharma, name: AstraZeneca,          type: workday, url: "https://astrazeneca.wd3.myworkdayjobs.com/Careers" }
+  - { group: Pharma, name: Bristol Myers Squibb, type: workday, url: "https://bristolmyerssquibb.wd5.myworkdayjobs.com/BMS" }
+  - { group: Pharma, name: GSK,                  type: workday, url: "https://gsk.wd5.myworkdayjobs.com/GSKCareers" }
+  - { group: Pharma, name: Sanofi,               type: workday, url: "https://sanofi.wd3.myworkdayjobs.com/SanofiCareers" }
+  - { group: Pharma, name: Eli Lilly,            type: workday, url: "https://lilly.wd5.myworkdayjobs.com/LLY",
+      fallback: { type: phenom, url: "https://careers.lilly.com/us/en" } }
+  - { group: Pharma, name: Takeda,               type: workday, url: "https://takeda.wd3.myworkdayjobs.com/External",
+      fallback: { type: radancy, url: "https://jobs.takeda.com" } }
+  - { group: Pharma, name: AbbVie,               type: smartrecruiters, url: "abbvie" }
+  - { group: Pharma, name: Novo Nordisk,         type: successfactors, url: "https://careers.novonordisk.com" }
+  - { group: Pharma, name: Boehringer Ingelheim, type: successfactors, url: "https://jobs.boehringer-ingelheim.com" }
+  - { group: Pharma, name: Bayer,                type: eightfold,      url: "https://talent.bayer.com" }
+  - { group: Pharma, name: Merck KGaA (EMD Serono), type: phenom,      url: "https://careers.merckgroup.com/global/en" }
+  - { group: Pharma, name: Astellas,             type: successfactors, url: "https://careers.astellas.com" }
+  - { group: Pharma, name: Daiichi Sankyo,       type: successfactors, url: "https://careers.daiichisankyo.com" }
+  - { group: Pharma, name: Organon,              type: phenom,  url: "https://jobs.organon.com/us/en" }
 
   # ---- Large biotech ----
-  - { name: Amgen,                type: workday, url: "https://amgen.wd1.myworkdayjobs.com/Careers" }
-  - { name: Gilead,               type: workday, url: "https://gilead.wd1.myworkdayjobs.com/gileadcareers" }
-  - { name: Regeneron,            type: workday, url: "https://regeneron.wd1.myworkdayjobs.com/Careers" }
-  - { name: Biogen,               type: workday, url: "https://biibhr.wd3.myworkdayjobs.com/external" }
-  - { name: Vertex,               type: workday, url: "https://vrtx.wd501.myworkdayjobs.com/vertex_careers" }
-  - { name: Moderna,              type: workday, url: "https://modernatx.wd1.myworkdayjobs.com/M_tx" }
-  - { name: BeiGene / BeOne,      type: workday, url: "https://beigene.wd5.myworkdayjobs.com/BeiGene" }
+  - { group: Biotech, name: Amgen,               type: workday, url: "https://amgen.wd1.myworkdayjobs.com/Careers" }
+  - { group: Biotech, name: Gilead,              type: workday, url: "https://gilead.wd1.myworkdayjobs.com/gileadcareers" }
+  - { group: Biotech, name: Regeneron,           type: workday, url: "https://regeneron.wd1.myworkdayjobs.com/Careers" }
+  - { group: Biotech, name: Biogen,              type: workday, url: "https://biibhr.wd3.myworkdayjobs.com/external" }
+  - { group: Biotech, name: Vertex,              type: workday, url: "https://vrtx.wd501.myworkdayjobs.com/vertex_careers" }
+  - { group: Biotech, name: Moderna,             type: workday, url: "https://modernatx.wd1.myworkdayjobs.com/M_tx" }
+  - { group: Biotech, name: BeiGene / BeOne,     type: workday, url: "https://beigene.wd5.myworkdayjobs.com/BeiGene" }
+  - { group: Biotech, name: Alcon,               type: workday, url: "https://alcon.wd5.myworkdayjobs.com/careers_alcon" }
 
-  # ---- Eye care ----
-  - { name: Alcon,                type: workday, url: "https://alcon.wd5.myworkdayjobs.com/careers_alcon" }
+  # ---- CRO & HEOR consulting ----
+  - { group: CRO & Consulting, name: IQVIA,                  type: workday, url: "https://iqvia.wd1.myworkdayjobs.com" }
+  - { group: CRO & Consulting, name: Thermo Fisher (PPD / Evidera), type: phenom, url: "https://jobs.thermofisher.com/global/en",
+      max_jobs: 12000 }
+  - { group: CRO & Consulting, name: Parexel,                type: radancy, url: "https://jobs.parexel.com" }
+  - { group: CRO & Consulting, name: ICON,                   type: workday, url: "https://iconplc.wd3.myworkdayjobs.com" }
+  - { group: CRO & Consulting, name: Cencora (incl. Xcenda),  type: workday, url: "https://myhrabc.wd5.myworkdayjobs.com" }
