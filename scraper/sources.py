@@ -218,6 +218,9 @@ def workday_detail(s, job):
 # Used by Novo Nordisk, Boehringer Ingelheim, Astellas, Daiichi Sankyo.
 # Classic sites render a results table at /search/; newer "Career Site Builder" sites load
 # results from /services/recruiting/v1/jobs. We try the table first, then the JSON API.
+SF_TOTAL = [None]
+
+
 def fetch_successfactors(s, name, url, max_jobs):
     base = url.rstrip("/")
     notes = []
@@ -225,6 +228,9 @@ def fetch_successfactors(s, name, url, max_jobs):
         try:
             jobs = step(s, name, base, max_jobs)
             if jobs:
+                extra = f", site says {SF_TOTAL[0]} in total" if step is _sf_api and SF_TOTAL[0] else ""
+                if max_jobs > 1:
+                    print(f"     note: {name} read via {step.__name__.lstrip('_')} ({len(jobs)} jobs{extra})")
                 return jobs
             notes.append(f"{step.__name__}: 0 jobs")
         except Exception as e:
@@ -283,6 +289,7 @@ def _sf_api(s, name, base, max_jobs):
             return out
         data = r.json()
         total = total or data.get("totalJobs")
+        SF_TOTAL[0] = total
         items = data.get("jobSearchResult") or []
         if not items:
             break
